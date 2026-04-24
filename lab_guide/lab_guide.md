@@ -1,8 +1,8 @@
 # Lakeflow Designer - Hands-On Lab Guide
 
-> **Audience:** Data analysts and engineers evaluating Lakeflow Designer as an Alteryx replacement.
-> **Dataset:** Retail supply chain (customers, products, stores, suppliers, orders, order_items).
-> **Workspace prerequisite:** Run `data_generation/00_generate_test_data.py` first.
+> **Scenario:** OTC Derivatives regulatory reporting -- reconciliation, break detection, and Finrep preparation.
+> **Dataset:** Finance/CFT (counterparties, OTC trades, settlements, market data) + Excel regulatory adjustments.
+> **Prerequisite:** Run `data_generation/00_generate_test_data.py` first.
 
 ---
 
@@ -11,533 +11,518 @@
 ### 0.1 Run the data generation notebook
 
 1. In your Databricks workspace, click **New > Notebook**.
-2. Copy-paste or import `data_generation/00_generate_test_data.py`.
-3. Attach to a cluster (serverless recommended) and **Run All**.
-4. Confirm you see 6 tables in `lab_lakeflow.retail`.
+2. Import `data_generation/00_generate_test_data.py`.
+3. Attach to serverless compute and **Run All**.
+4. Confirm you see 4 tables in `lab_lakeflow.cft` plus an Excel file in the Volume.
 
 ### 0.2 Verify Unity Catalog access
 
 ```sql
 USE CATALOG lab_lakeflow;
-USE SCHEMA retail;
+USE SCHEMA cft;
 SHOW TABLES;
 ```
 
-You should see: `customers`, `products`, `stores`, `suppliers`, `orders`, `order_items`.
+You should see: `counterparties`, `otc_trades`, `settlements`, `market_data`.
 
-### 0.3 Check the CSV volume
+### 0.3 Check the Excel file in the Volume
 
 ```sql
-LIST '/Volumes/lab_lakeflow/retail/lab_files/';
+LIST '/Volumes/lab_lakeflow/cft/lab_files/';
 ```
 
-You should see `promotions.csv`.
+You should see `regulatory_adjustments.xlsx` and `regulatory_adjustments.csv`.
+
+### 0.4 Download the Excel file locally
+
+Download `regulatory_adjustments.xlsx` from the Volume to your local machine. You will drag-and-drop it into Lakeflow Designer in Module 1.
 
 ---
 
-## Module 1 - Your First Visual Data Prep
+## Module 1 - Your First Visual Data Prep: Ingest a UC Table + an Excel File
 
-> **Goal:** Learn canvas basics, add a Source, navigate, and preview data.
+> **Goal:** Create a pipeline that combines a governed UC table with an ad-hoc Excel file from the business -- the core pattern that needs industrializing.
 
 ### 1.1 Create a new Visual Data Prep
 
 1. In the sidebar, click **New > Visual data prep**.
-2. The welcome screen appears with the option to select a source.
+2. The welcome screen appears.
 
-### 1.2 Add a Source operator
+### 1.2 Add a Unity Catalog source
 
-1. Click **Select source** and browse to `lab_lakeflow.retail.customers`.
+1. Click **Select source** and browse to `lab_lakeflow.cft.otc_trades`.
 2. The Source operator appears on the canvas.
-3. Click on the operator -- the **output pane** at the bottom shows a data preview (up to 1,000 rows).
+3. Click on it -- the **output pane** shows a preview (up to 1,000 rows).
 
-### 1.3 Explore the canvas
+### 1.3 Drag-and-drop the Excel file
+
+1. Open your file explorer and locate `regulatory_adjustments.xlsx`.
+2. **Drag the file directly onto the canvas.**
+3. Lakeflow Designer uploads it and creates a Source operator automatically.
+4. Click on the new Source -- you see the Adjustments sheet data.
+
+> **Key message:** This is exactly how business teams will work. They have an Excel file with manual adjustments, they drop it on the canvas, and it immediately becomes part of a governed pipeline. No more emailing spreadsheets around.
+
+### 1.4 Explore the canvas
 
 | Action | How |
 |---|---|
 | Pan | Hold `Space` + drag |
 | Zoom | `Ctrl/Cmd` + scroll wheel |
-| Fit view | Click the fit-to-view button (top toolbar) |
-| Auto-layout | Click the auto-layout button (top toolbar) |
+| Fit view | Click the fit-to-view icon (toolbar) |
+| Auto-layout | Click the auto-layout icon (toolbar) |
 | Undo / Redo | `Cmd/Ctrl + Z` / `Cmd/Ctrl + Shift + Z` |
 
-### 1.4 Data profiling
+### 1.5 Data profiling
 
-1. With the customers Source selected, look at the output pane.
+1. Click the OTC trades Source operator.
 2. Click the **sidebar icon** (top-right of the output pane) to open **Data Profiling**.
-3. Explore the distribution graphs for `age`, `loyalty_tier`, `city`.
-4. Click on a column header to see stats: count, distinct values, nulls, min/max.
+3. Explore distributions: `product_type`, `currency`, `status`, `mtm_eur`.
+4. Notice the stats: count, distinct values, nulls, min/max per column.
 
-### 1.5 Sample vs Full dataset
+### 1.6 Sample vs Full dataset
 
-1. Notice the toggle at the top of the output pane: **Sample dataset** (default).
-2. Switch to **Full dataset** and click **Run**. The preview now shows all 5,000 rows.
-3. Switch back to **Sample dataset** for faster iteration.
-
-> **Alteryx comparison:** This replaces the Browse tool. Unlike Alteryx which must run the entire workflow to see results, Lakeflow Designer shows instant previews on sample data at every step.
+1. Toggle to **Full dataset** and click **Run** -- all 10,000 trades appear.
+2. Switch back to **Sample dataset** for faster iteration.
 
 ---
 
 ## Module 2 - Filtering & Sorting
 
-> **Goal:** Master the Filter, Sort, and Limit operators.
+> **Goal:** Filter trades by status, product type, and sort by exposure.
 
-### 2.1 Filter operator - Basic
+### 2.1 Filter - Live trades only
 
-1. Click the **+** button on the right side of the customers Source operator.
-2. Select **Filter** from the operator menu.
-3. Configure the filter:
-   - Column: `is_active`
-   - Condition: `Is equal to`
-   - Value: `true`
-4. Check the output pane -- only active customers remain.
+1. Click **+** on the `otc_trades` Source.
+2. Select **Filter**.
+3. Configure: Column: `status`, Condition: `Is equal to`, Value: `Live`.
+4. Preview: only live trades remain.
 
-### 2.2 Filter operator - Multiple conditions
+### 2.2 Filter - Multiple conditions
 
-1. In the same Filter operator, click **+ Add condition**.
-2. Add: Column: `loyalty_tier`, Condition: `Is one of`, Values: `Gold, Platinum`.
-3. The output now shows only active Gold/Platinum customers.
+1. Click **+ Add condition** in the same Filter.
+2. Add: Column: `clearing_type`, Condition: `Is equal to`, Value: `Bilateral`.
+3. Now you see only live bilateral trades -- the ones with the most counterparty risk.
 
-> **Tip:** Conditions are combined with AND logic by default.
+### 2.3 Filter - Numeric threshold
 
-### 2.3 Filter operator - Text matching
+1. Add a new Filter after the first one.
+2. Column: `notional_amount`, Condition: `Greater than`, Value: `10000000`.
+3. Preview: large bilateral live trades only.
 
-1. Add a **new** Filter after the first one (click **+** on the Filter output).
-2. Configure: Column: `city`, Condition: `Contains`, Value: `Paris`.
-3. Preview the results -- only Parisian Gold/Platinum active customers.
+### 2.4 Sort by exposure
 
-### 2.4 Sort operator
+1. Add a **Sort** operator.
+2. Sort by `mtm_eur` **DESC** (largest positive exposure first).
+3. Add secondary sort: `notional_amount` **DESC**.
 
-1. Click **+** on the last Filter and select **Sort**.
-2. Sort by `age` in **DESC** (descending) order.
-3. Click **+ Add sort expression** and add `last_name` **ASC** as a secondary sort.
-4. Preview the sorted output.
+### 2.5 Limit
 
-### 2.5 Limit operator
-
-1. Add a **Limit** operator after the Sort.
-2. Set the row limit to `100`.
-3. Preview: you now see the top 100 oldest Gold/Platinum active customers in Paris.
-
-> **Alteryx comparison:** Filter = Alteryx Filter. Sort = Alteryx Sort. Limit = Alteryx Sample. The difference: no need to run the workflow first; results are instant.
+1. Add a **Limit** operator: 50 rows.
+2. You now have the top 50 largest bilateral exposures.
 
 ---
 
-## Module 3 - Transforms & Expressions
+## Module 3 - Transforms & Genie Code AI
 
-> **Goal:** Use the Transform operator, create custom columns, and leverage Genie Code AI.
+> **Goal:** Add calculated columns. Show how Genie Code replaces the need to know Spark SQL syntax.
 
 ### 3.1 Start a new Visual Data Prep
 
-1. Create a new Visual data prep (**New > Visual data prep**).
-2. Add Source: `lab_lakeflow.retail.products`.
+1. **New > Visual data prep**.
+2. Source: `lab_lakeflow.cft.otc_trades`.
 
-### 3.2 Transform - Select and rename columns
+### 3.2 Transform - Select, rename, reorder
 
 1. Add a **Transform** operator.
-2. In the configuration pane:
-   - **Uncheck** `created_date` (exclude it from output).
-   - **Rename** `unit_price` to `retail_price`.
-   - **Rename** `unit_cost` to `cost_price`.
-   - **Reorder**: drag `category` above `brand`.
-3. Preview the result.
+2. **Uncheck** `uti` and `trade_timestamp` (not needed for this report).
+3. **Rename** `mtm_eur` to `mark_to_market`.
+4. **Rename** `notional_amount` to `notional`.
+5. **Reorder**: drag `product_type` above `book`.
 
-### 3.3 Transform - Custom column (manual expression)
+### 3.3 Custom column - Manual expression
 
-1. In the same Transform operator, click **+ Add a custom column**.
-2. Name: `profit_margin_pct`
-3. In the **Expression** field, type:
+1. Click **+ Add a custom column**.
+2. Name: `exposure_pct`
+3. Expression:
    ```
-   round((retail_price - cost_price) / retail_price * 100, 1)
+   round(abs(mark_to_market) / notional * 100, 2)
    ```
-4. Preview the new column. Each product now has a margin percentage.
+4. Preview.
 
-### 3.4 Transform - Custom column with Genie Code AI
+### 3.4 Custom column - Genie Code AI (natural language)
 
-1. Click **+ Add a custom column** again.
-2. Name: `price_category`
-3. In the **Description** field (natural language), type:
+1. Click **+ Add a custom column**.
+2. Name: `risk_bucket`
+3. In the **Description** field, type:
    ```
-   Categorize the retail price: "Budget" if under 30, "Mid-range" if 30-100, "Premium" if over 100
+   Classify the trade risk: "High" if absolute mark_to_market exceeds 1 million, "Medium" if between 100k and 1M, "Low" otherwise
    ```
-4. Watch Genie generate the expression automatically.
-5. Review the generated code and preview the result.
+4. Genie generates the CASE expression. Review and accept.
 
 ### 3.5 Genie Code - Open conversation
 
-1. Open the **Genie Code** panel (AI assistant icon on the canvas).
-2. Type: `Add a column called margin_category that labels products as "Low Margin" if profit_margin_pct < 30, "Medium Margin" if between 30-60, and "High Margin" if above 60`
-3. Genie adds the transformation. Review the operator it created.
-4. Try another prompt: `Flag products where weight_kg is above 10 as "Heavy" and the rest as "Light"`
+1. Open the **Genie Code** panel.
+2. Try these prompts:
+   - `Add a column days_to_maturity calculated as the number of days between maturity_date and current_date`
+   - `Flag trades where maturity_date is before 2026-06-30 as "Near Term" and others as "Long Term"`
+   - `Create a column tenor_bucket: "Short" if days_to_maturity < 365, "Medium" if < 1825, "Long" otherwise`
+3. Each prompt generates a transformation. Review the code Genie produces.
 
-### 3.6 Genie Code - Image upload
+### 3.6 Genie Code - Advanced prompt
 
-1. Take a screenshot of a spreadsheet formula or an Alteryx workflow you want to replicate.
-2. Upload it via the **image upload button** in Genie Code.
-3. Ask Genie: `Replicate this logic in my pipeline`.
+Try: `Calculate the absolute notional in EUR. If the currency is already EUR, keep as-is. For USD use rate 1.08, for GBP use 0.86, for CHF use 0.95, for JPY use 162.5. Name the column notional_eur.`
 
-> **Alteryx comparison:** Transform = Alteryx Select + Formula tools combined. Genie Code is a major differentiator -- Alteryx has no AI-assisted expression builder.
+> **Key message for SG:** Your business users don't need to learn Spark SQL. They describe what they want, Genie writes the code. And the code is visible and auditable -- important for regulatory traceability.
 
 ---
 
 ## Module 4 - Joins
 
-> **Goal:** Join multiple tables like you would in Alteryx.
+> **Goal:** Enrich trades with counterparty information and detect settlement breaks.
 
-### 4.1 Set up the join
+### 4.1 Enrich trades with counterparty data
 
-1. Create a new Visual data prep.
-2. Add **two** Source operators:
-   - Source 1: `lab_lakeflow.retail.orders`
-   - Source 2: `lab_lakeflow.retail.customers`
+1. New Visual data prep.
+2. Add two Sources: `otc_trades` and `counterparties`.
+3. Add a **Join** operator.
+4. Connect `otc_trades` (left) and `counterparties` (right).
+5. Join condition: `otc_trades.counterparty_id = counterparties.counterparty_id`.
+6. Join type: **Inner join**.
+7. Uncheck duplicate `counterparty_id` in output columns.
+8. Preview: trades now have counterparty name, rating, type, country.
 
-### 4.2 Inner Join
+### 4.2 Add a custom expression in the Join
 
-1. Add a **Join** operator from the menu.
-2. Connect the output of `orders` to the left input of the Join.
-3. Connect the output of `customers` to the right input of the Join.
-4. Configure:
-   - Join condition: `orders.customer_id = customers.customer_id`
-   - Join type: **Inner join**
-5. Preview the result. Notice that columns from both tables appear.
-
-### 4.3 Column selection in Join
-
-1. In the Join configuration, scroll to the **Output columns** section.
-2. Uncheck duplicate columns (e.g., the second `customer_id`).
-3. Keep only the columns you need: `order_id`, `order_timestamp`, `order_status`, `first_name`, `last_name`, `loyalty_tier`.
-
-### 4.4 Left Join
-
-1. Change the join type to **Left join**.
-2. Preview: all orders appear, including those where `customer_id` might not match (nulls on the customer side).
-
-### 4.5 Multi-table join
-
-1. Add a third Source: `lab_lakeflow.retail.stores`.
-2. Add another **Join** operator after the first Join.
-3. Connect the first Join's output to the left input.
-4. Connect `stores` to the right input.
-5. Join on: `orders.store_id = stores.store_id`.
-6. Use a **Left join** (some orders may not have a store -- web/mobile orders).
-7. Preview the enriched dataset.
-
-### 4.6 Add a custom expression in Join
-
-1. In the second Join, click **+ Add custom expression column**.
-2. Name: `order_channel_detail`
+1. Click **+ Add custom expression column**.
+2. Name: `counterparty_label`
 3. Expression:
    ```
-   CASE WHEN store_name IS NOT NULL THEN concat('In-store: ', store_name) ELSE order_channel END
+   concat(counterparty_name, ' (', credit_rating, ' - ', country, ')')
    ```
-4. Preview.
 
-> **Alteryx comparison:** Join operator = Alteryx Join tool. Multiple joins chain naturally. The custom expression column in the Join is a bonus Alteryx doesn't have natively.
+### 4.3 Detect settlement breaks (Left Join)
+
+1. Add a third Source: `settlements`.
+2. Add a new **Join** after the first one.
+3. Connect the enriched trades (left) to settlements (right).
+4. Join on: `otc_trades.trade_id = settlements.trade_id`.
+5. Join type: **Left join** (trades without settlements = breaks).
+6. Preview: some rows have null `settlement_id` -- these are the breaks.
+
+### 4.4 Filter to show only breaks
+
+1. Add a **Filter** after the join.
+2. Column: `settlement_id`, Condition: `Is null`.
+3. Preview: ~500 trades with no settlement record.
+
+> **Key message:** This is a classic Alteryx reconciliation pattern -- load two datasets, join, find mismatches. In Lakeflow Designer it's the same logic, but governed and scalable.
 
 ---
 
 ## Module 5 - Aggregations
 
-> **Goal:** Summarize data with grouping and aggregate functions.
+> **Goal:** Build summary reports for regulatory reporting.
 
-### 5.1 Revenue by customer
+### 5.1 Exposure by counterparty
 
-1. Continue from Module 4 or start a new Visual data prep with `order_items` and `orders` as sources.
-2. Join `order_items` to `orders` on `order_id`.
-3. Add an **Aggregate** operator after the Join.
-4. Configure:
-   - **Group by:** `customer_id`
+1. Start from the enriched trades (Module 4.1 join output).
+2. Add an **Aggregate** operator.
+3. Configure:
+   - **Group by:** `counterparty_name`, `credit_rating`, `counterparty_type`
    - **Aggregations:**
-     - `line_total` > **SUM** > name it `total_revenue`
-     - `item_id` > **COUNT** > name it `total_items`
-     - `line_total` > **AVG** > name it `avg_order_value`
-5. Preview the customer summary.
+     - `mark_to_market` > **SUM** > `total_mtm`
+     - `notional` > **SUM** > `total_notional`
+     - `trade_id` > **COUNT** > `trade_count`
+     - `mark_to_market` > **MAX** > `max_single_exposure`
 
-### 5.2 Multiple groupings
+### 5.2 Exposure by product and clearing type
 
-1. Add a second Aggregate operator.
-2. Group by: `order_status`
-3. Aggregations:
-   - `order_id` > **COUNT** > `order_count`
-   - `line_total` > **SUM** > `total_value`
-   - `line_total` > **MEDIAN** > `median_value`
-4. Preview.
+1. Add another Aggregate:
+   - **Group by:** `product_type`, `clearing_type`
+   - **Aggregations:**
+     - `notional` > **SUM** > `total_notional`
+     - `trade_id` > **COUNT** > `trade_count`
+     - `mark_to_market` > **AVG** > `avg_mtm`
+     - `mark_to_market` > **STDDEV** > `mtm_volatility`
 
-### 5.3 Advanced aggregations
+### 5.3 Advanced: Percentile analysis
 
-1. Create a new Aggregate:
-   - Group by: `product_id`
-   - Aggregations:
-     - `quantity` > **SUM** > `total_units_sold`
-     - `line_total` > **SUM** > `total_revenue`
-     - `unit_price_snapshot` > **STDDEV** > `price_volatility`
-     - `unit_price_snapshot` > **VARIANCE** > `price_variance`
-     - `quantity` > **PERCENTILE** (configure: 90th) > `qty_p90`
-2. Preview.
+1. New Aggregate:
+   - **Group by:** `product_type`
+   - **Aggregations:**
+     - `notional` > **MEDIAN** > `median_notional`
+     - `mark_to_market` > **PERCENTILE** (90th) > `mtm_p90`
+     - `mark_to_market` > **VARIANCE** > `mtm_variance`
 
-> **Available aggregation functions:** AVG, COUNT, MAX, MEAN, MEDIAN, MIN, PERCENTILE, STDDEV, SUM, VARIANCE
->
-> **Alteryx comparison:** Aggregate = Alteryx Summarize tool. All standard functions plus PERCENTILE, STDDEV, and VARIANCE which require the R or Python tool in Alteryx.
+> **Available functions:** AVG, COUNT, MAX, MEAN, MEDIAN, MIN, PERCENTILE, STDDEV, SUM, VARIANCE.
+> In Alteryx, PERCENTILE and STDDEV require the R or Python tool. Here they are built-in.
 
 ---
 
 ## Module 6 - Combine & Reshape
 
-> **Goal:** Use Union, Intersect, Except, and Pivot/Unpivot.
+> **Goal:** Union datasets, pivot for cross-tabulation, unpivot.
 
-### 6.1 Combine - Union
+### 6.1 Combine - Union bilateral and cleared trades
 
-1. Create a new Visual data prep.
-2. Add two Source operators:
-   - Source 1: filter `orders` where `order_channel = 'Web'`
-   - Source 2: filter `orders` where `order_channel = 'Mobile App'`
-   (Use a Filter operator after each Source to apply the condition.)
-3. Add a **Combine** operator and connect both filtered outputs.
-4. Set operation: **Union** / **All** (keep duplicates).
-5. Preview -- you now have all digital orders combined.
+1. New Visual data prep.
+2. Source: `otc_trades`.
+3. Add two Filters after the source:
+   - Filter A: `clearing_type = 'Bilateral'`
+   - Filter B: `clearing_type = 'CCP-Cleared'`
+4. Add a Transform to each to select the same columns (e.g., `trade_id`, `product_type`, `notional_amount`, `mtm_eur`).
+5. Add a **Combine** operator, connect both.
+6. Operation: **Union** / **All**.
+7. Preview: all trades combined.
 
-### 6.2 Combine - Intersect
+### 6.2 Combine - Except (find bilateral-only products)
 
-1. Create two filtered customer sets:
-   - Set A: customers in `Ile-de-France`
-   - Set B: customers with `loyalty_tier = 'Gold'`
-2. Use a Transform on each to select only `customer_id`, `first_name`, `last_name`.
-3. Combine with **Intersect** > **Distinct**.
-4. Preview: only Gold customers who live in Ile-de-France.
+1. Same setup but change to **Except** / **Distinct**.
+2. Preview: products that exist in bilateral but not in cleared.
 
-### 6.3 Combine - Except
+### 6.3 Pivot - Exposure cross-tab
 
-1. Same setup as 6.2.
-2. Change operation to **Except** > **Distinct**.
-3. Preview: Ile-de-France customers who are NOT Gold tier.
-
-### 6.4 Pivot (Rows to Columns)
-
-1. Start from an Aggregate that shows `order_count` grouped by `order_channel` and `order_status`.
-2. Add a **Pivot** operator (may appear as **Reshape**).
+1. Start from an Aggregate: group by `product_type` and `clearing_type`, sum `notional_amount` as `total_notional`.
+2. Add a **Pivot** (Reshape) operator.
 3. Mode: **Rows to Columns**.
-4. Pivot column: `order_status`
-5. Value column: `order_count`
-6. Aggregation: **SUM**
-7. Preview: each row is a channel, columns are statuses with counts.
+4. Pivot column: `clearing_type`.
+5. Value: `total_notional`, Aggregation: **SUM**.
+6. Preview: each row is a product type, columns are Bilateral / CCP-Cleared with notional amounts.
 
-### 6.5 Unpivot (Columns to Rows)
+### 6.4 Unpivot
 
-1. On the pivoted output, add another Pivot operator.
-2. Mode: **Columns to Rows**.
-3. Select the status columns to unpivot.
-4. Configure key column name: `status` and value column name: `count`.
-5. Preview: the data is back in long format.
-
-> **Alteryx comparison:** Combine = Alteryx Union. Pivot = Alteryx Cross Tab. Unpivot = Alteryx Transpose. In Alteryx these are 3 separate tools; in Lakeflow Designer, Combine handles Union/Intersect/Except and Pivot handles both directions.
+1. Add another Pivot in **Columns to Rows** mode.
+2. Select the clearing columns to unpivot.
+3. Key column: `clearing_type`, Value column: `notional`.
+4. Data is back in long format.
 
 ---
 
 ## Module 7 - SQL & Python Operators
 
-> **Goal:** Use custom SQL and PySpark when built-in operators aren't enough.
+> **Goal:** Handle complex logic that goes beyond built-in operators.
 
-### 7.1 SQL operator
+### 7.1 SQL - Window functions for ranking
 
-1. In any Visual data prep, add a **SQL** operator after a Source or Transform.
-2. The SQL operator lets you write a custom `SELECT` statement.
-3. Upstream operators are referenced by their **operator name** as table identifiers.
-4. Example: if your Source is named `customers`, write:
+1. New Visual data prep, Source: `otc_trades`.
+2. Add a **SQL** operator:
    ```sql
    SELECT
-     customer_id,
-     first_name || ' ' || last_name AS full_name,
-     DATEDIFF(CURRENT_DATE(), signup_date) AS days_since_signup,
-     CASE
-       WHEN age < 25 THEN 'Gen Z'
-       WHEN age < 40 THEN 'Millennial'
-       WHEN age < 55 THEN 'Gen X'
-       ELSE 'Boomer'
-     END AS generation
-   FROM customers
-   WHERE is_active = true
+     trade_id,
+     counterparty_id,
+     product_type,
+     notional_amount,
+     mtm_eur,
+     RANK() OVER (PARTITION BY product_type ORDER BY abs(mtm_eur) DESC) AS exposure_rank,
+     SUM(notional_amount) OVER (PARTITION BY counterparty_id) AS cpty_total_notional,
+     COUNT(*) OVER (PARTITION BY counterparty_id) AS cpty_trade_count
+   FROM otc_trades
+   WHERE status = 'Live'
    ```
-5. Preview the result.
 
-### 7.2 SQL - Window functions
+### 7.2 SQL - Settlement break analysis
 
-1. Add another SQL operator and write:
-   ```sql
-   SELECT *,
-     RANK() OVER (PARTITION BY generation ORDER BY days_since_signup DESC) AS tenure_rank,
-     COUNT(*) OVER (PARTITION BY generation) AS generation_count
-   FROM sql_operator_1
-   ```
-   (Replace `sql_operator_1` with the actual name of the upstream operator.)
-2. This demonstrates window functions that would require Alteryx's Multi-Row Formula or Summarize + Join.
+```sql
+SELECT
+  t.trade_id,
+  t.product_type,
+  t.notional_amount,
+  s.expected_amount,
+  s.actual_amount,
+  s.settlement_status,
+  CASE
+    WHEN s.settlement_id IS NULL THEN 'Missing Settlement'
+    WHEN s.actual_amount = 0 THEN 'Failed'
+    WHEN abs(s.actual_amount - s.expected_amount) / s.expected_amount > 0.01 THEN 'Amount Mismatch'
+    ELSE 'Matched'
+  END AS break_type,
+  COALESCE(s.actual_amount - s.expected_amount, 0) AS amount_difference
+FROM otc_trades t
+LEFT JOIN settlements s ON t.trade_id = s.trade_id
+WHERE t.status = 'Live'
+```
 
-### 7.3 Python operator
+### 7.3 Python - Custom risk calculation
 
-1. Add a **Python** operator.
-2. Your input data is available as `inputs["data"]` (a list of DataFrames, typically `inputs["data"][0]`).
-3. Write PySpark code:
+1. Add a **Python** operator:
    ```python
    from pyspark.sql import functions as F
 
    df = inputs["data"][0]
 
-   # Add a column with a complex calculation
    result = df.withColumn(
-       "loyalty_score",
-       F.when(F.col("generation") == "Gen Z", F.col("days_since_signup") * 1.5)
-        .when(F.col("generation") == "Millennial", F.col("days_since_signup") * 1.2)
-        .otherwise(F.col("days_since_signup") * 1.0)
+       "pfe_estimate",
+       F.when(F.col("product_type") == "IRS",
+              F.abs(F.col("notional_amount")) * 0.005 * F.sqrt(F.col("cpty_trade_count")))
+        .when(F.col("product_type") == "CDS",
+              F.abs(F.col("notional_amount")) * 0.05)
+        .when(F.col("product_type").startswith("FX"),
+              F.abs(F.col("notional_amount")) * 0.02)
+        .otherwise(F.abs(F.col("notional_amount")) * 0.01)
    ).withColumn(
-       "loyalty_score_normalized",
-       F.round(F.col("loyalty_score") / F.lit(365), 2)
+       "pfe_estimate", F.round(F.col("pfe_estimate"), 2)
    )
    ```
-4. The variable `result` is the output DataFrame.
-5. Preview.
+2. Preview: potential future exposure (PFE) estimated per trade.
 
-> **Alteryx comparison:** SQL operator = a massive upgrade over Alteryx's in-database tools. Python operator = Alteryx Python tool but running on Spark (distributed, not single-machine pandas).
+> **Key difference vs Alteryx:** The Python operator runs on Spark -- distributed across the cluster. Alteryx Python tool runs single-threaded on the desktop.
 
 ---
 
-## Module 8 - Output, Publish & Schedule
+## Module 8 - Output, Lineage & Schedule
 
-> **Goal:** Write results to Unity Catalog tables and automate the pipeline.
+> **Goal:** Write results to Unity Catalog, show lineage, and schedule the pipeline.
 
 ### 8.1 Add an Output operator
 
-1. In any pipeline, click **+** on the last operator.
-2. Select **Output** (target).
+1. On any pipeline, click **+** on the last operator.
+2. Select **Output**.
 3. Configure:
    - Catalog: `lab_lakeflow`
-   - Schema: `retail`
-   - Table name: `gold_customer_summary`
-4. Click **Run** to materialize the table.
+   - Schema: `cft`
+   - Table name: `report_settlement_breaks`
+4. Click **Run** to materialize.
 
 ### 8.2 Verify the output
 
 ```sql
-SELECT * FROM lab_lakeflow.retail.gold_customer_summary LIMIT 10;
+SELECT * FROM lab_lakeflow.cft.report_settlement_breaks LIMIT 20;
 ```
 
-### 8.3 Schedule the pipeline
+### 8.3 View lineage in Unity Catalog
 
-1. Click the **Schedule** button in the top toolbar.
-2. Configure:
-   - Frequency: Daily, Weekly, or Cron expression
-   - Cluster: serverless (recommended)
-3. Save the schedule.
+1. Navigate to **Catalog > lab_lakeflow > cft > report_settlement_breaks**.
+2. Click the **Lineage** tab.
+3. You can see the full lineage graph: which source tables feed this output, through which transformations.
 
-### 8.4 Integrate into a Databricks Job
+> **Key message for ECB:** This is the governance story. Every output table has full lineage back to its sources -- including the Excel file that was dropped onto the canvas. This is what ECB auditors want to see: traceability from ad-hoc business inputs to regulatory reports.
 
-1. Go to **Workflows > Jobs > Create Job**.
-2. Add a task of type **Visual data prep**.
-3. Select your saved Visual data prep.
-4. Add additional tasks (notebooks, SQL, other pipelines) to build a complete orchestrated workflow.
-5. This is how you build production-grade data pipelines that replace Alteryx Server.
+### 8.4 Schedule the pipeline
 
-> **Alteryx comparison:** Output = Alteryx Output Data tool, but writes directly to governed Unity Catalog tables. Schedule = Alteryx Scheduler / Server, but integrated with Databricks Jobs for multi-step orchestration that Alteryx Server cannot match.
+1. Click **Schedule** in the top toolbar.
+2. Set frequency (e.g., Daily at 6:00 AM).
+3. Save.
+
+### 8.5 Integrate into a Databricks Job
+
+1. **Workflows > Jobs > Create Job**.
+2. Add a task of type **Visual data prep**, select your pipeline.
+3. Add upstream tasks (data ingestion notebooks) and downstream tasks (report generation, validation).
+4. This replaces Alteryx Server for orchestration.
 
 ---
 
-## Module 9 - End-to-End Pipeline: Alteryx Replacement Workflow
+## Module 9 - End-to-End Pipeline: Regulatory Report
 
-> **Goal:** Build a complete pipeline that mimics a typical Alteryx workflow -- from raw data to business-ready output.
+> **Goal:** Build the complete Finrep-style pipeline from raw data to regulatory output.
 
 ### Scenario
 
-Your business team needs a **Weekly Sales Performance Report** with:
-- Revenue by store and product category
-- Customer loyalty tier breakdown
-- Top 10 products by revenue
-- Comparison of online vs in-store sales
+Produce a **settlement reconciliation report** that:
+- Joins trades with counterparties and settlements
+- Incorporates the manual Excel adjustments from the business
+- Detects breaks (missing settlements, amount mismatches)
+- Aggregates exposure by counterparty and product
+- Outputs governed tables ready for Finrep submission
 
 ### Step-by-step
 
-#### 1. Sources (3 inputs)
-Add three Source operators:
-- `lab_lakeflow.retail.order_items`
-- `lab_lakeflow.retail.orders`
-- `lab_lakeflow.retail.products`
+#### 1. Sources (4 inputs)
+- Source 1: `lab_lakeflow.cft.otc_trades`
+- Source 2: `lab_lakeflow.cft.counterparties`
+- Source 3: `lab_lakeflow.cft.settlements`
+- Source 4: **Drag-and-drop** `regulatory_adjustments.xlsx` onto the canvas
 
-#### 2. Join order_items to orders
-- Join on `order_id`
-- Keep: `order_id`, `product_id`, `quantity`, `line_total`, `order_timestamp`, `order_status`, `order_channel`, `store_id`, `customer_id`, `discount_pct`
+#### 2. Enrich trades with counterparties
+- Join `otc_trades` to `counterparties` on `counterparty_id` (Inner join)
+- Keep: `trade_id`, `product_type`, `book`, `notional_amount`, `mtm_eur`, `currency`, `status`, `clearing_type`, `counterparty_name`, `credit_rating`, `country`, `counterparty_type`
 
-#### 3. Join to products
-- Join on `product_id`
-- Keep: add `product_name`, `category`, `brand`, `unit_cost`
+#### 3. Join with settlements
+- Left join on `trade_id`
+- Keep: add `settlement_status`, `expected_amount`, `actual_amount`
 
-#### 4. Filter completed orders
-- Filter: `order_status` = `Completed`
+#### 4. Filter live trades
+- Filter: `status = 'Live'`
 
-#### 5. Transform - Add calculated columns
+#### 5. Join with Excel adjustments
+- Left join enriched trades to the Excel adjustment data on `trade_id`
+- This merges the business team's manual adjustments into the pipeline
+
+#### 6. Transform - Calculate break indicators
 Use Genie Code:
-- Prompt: `Add columns: gross_profit = line_total - (unit_cost * quantity), order_month = date_format(order_timestamp, 'yyyy-MM')`
+- `Add a column break_type: "Missing Settlement" if settlement_status is null, "Failed" if actual_amount is 0, "Amount Mismatch" if absolute difference between actual and expected exceeds 1% of expected, "Adjusted" if adjustment_id is not null, "Matched" otherwise`
+- `Add a column adjusted_mtm: if adjusted_value is not null use adjusted_value, otherwise use mtm_eur`
 
-#### 6. Branch 1: Revenue by category and channel
-- Aggregate: Group by `category`, `order_channel`. Sum `line_total` as `revenue`, Sum `gross_profit` as `profit`, Count `order_id` as `order_count`.
-- Pivot: Rows to Columns on `order_channel`, value = `revenue`, aggregation = SUM.
-- Output: write to `lab_lakeflow.retail.report_revenue_by_category`
+#### 7. Branch 1: Break summary report
+- Aggregate: Group by `break_type`, `product_type`. Count `trade_id` as `break_count`, Sum `notional_amount` as `total_notional_at_risk`.
+- Output: `lab_lakeflow.cft.report_break_summary`
 
-#### 7. Branch 2: Top products
-- Aggregate: Group by `product_id`, `product_name`, `category`. Sum `line_total` as `total_revenue`, Sum `quantity` as `total_units`.
-- Sort: `total_revenue` DESC.
-- Limit: 10 rows.
-- Output: write to `lab_lakeflow.retail.report_top_products`
+#### 8. Branch 2: Counterparty exposure report
+- Aggregate: Group by `counterparty_name`, `credit_rating`, `country`. Sum `adjusted_mtm` as `total_exposure`, Count `trade_id` as `trade_count`.
+- Sort: `total_exposure` DESC.
+- Output: `lab_lakeflow.cft.report_counterparty_exposure`
 
-#### 8. Branch 3: Monthly trend
-- Aggregate: Group by `order_month`. Sum `line_total` as `monthly_revenue`, Count distinct `customer_id` as `unique_customers`.
-- Sort: `order_month` ASC.
-- Output: write to `lab_lakeflow.retail.report_monthly_trend`
+#### 9. Branch 3: Product cross-tab
+- Aggregate: Group by `product_type`, `clearing_type`. Sum `notional_amount` as `total_notional`.
+- Pivot: Rows to Columns on `clearing_type`.
+- Output: `lab_lakeflow.cft.report_product_clearing_matrix`
 
-#### 9. Run and verify
+#### 10. Run, verify lineage, and schedule
 
 ```sql
-SELECT * FROM lab_lakeflow.retail.report_revenue_by_category;
-SELECT * FROM lab_lakeflow.retail.report_top_products;
-SELECT * FROM lab_lakeflow.retail.report_monthly_trend;
+SELECT * FROM lab_lakeflow.cft.report_break_summary;
+SELECT * FROM lab_lakeflow.cft.report_counterparty_exposure ORDER BY total_exposure DESC LIMIT 20;
+SELECT * FROM lab_lakeflow.cft.report_product_clearing_matrix;
 ```
 
-#### 10. Schedule
-Schedule this pipeline to run weekly.
+Navigate to each table in Unity Catalog and check the **Lineage** tab.
+
+Schedule the pipeline to run daily.
 
 ---
 
-## Bonus Exercises
+## Bonus: Genie Q&A on the Data
 
-### Drag-and-drop CSV
-1. Download `promotions.csv` from the Volume (or use the one in `data_generation/`).
-2. Drag it onto the canvas of any Visual data prep.
-3. A Source operator is automatically created.
-4. Join it to your orders data on date ranges.
+After building the pipeline, try Genie for data exploration:
 
-### Genie Code advanced prompts
-Try these prompts in the Genie Code assistant:
-- `Show me the distribution of order values by loyalty tier`
-- `Create a cohort analysis based on customer signup month`
-- `Find customers who haven't ordered in the last 6 months`
-- `Calculate month-over-month revenue growth`
-- `@lab_lakeflow.retail.customers - which regions have the highest concentration of Platinum customers?`
+1. Open **Genie Code** on any operator.
+2. Try:
+   - `@lab_lakeflow.cft.otc_trades - Which counterparties have the highest total notional exposure?`
+   - `What percentage of trades have settlement breaks?`
+   - `Show me the distribution of MTM values by product type`
+   - `Which books have the most failed settlements?`
 
-### Google Drive / SharePoint import
-1. Upload a CSV to Google Drive.
-2. In a Source operator, select **Google Drive** and paste the file URL.
-3. You need a Unity Catalog connection for Google Drive configured by your admin.
+> **Key message:** Genie is not just for building transformations -- it's also a data Q&A tool. Two use cases in one: transformation building AND data exploration.
 
 ---
 
-## Appendix: Genie Code Prompt Library
-
-Effective prompts for common Alteryx-replacement tasks:
+## Appendix: Genie Code Prompt Library (Finance/CFT)
 
 | Task | Prompt |
 |---|---|
-| Dedup | `Remove duplicate rows based on customer_id, keeping the most recent order` |
-| Type cast | `Convert the order_date column from string to date format yyyy-MM-dd` |
-| Null handling | `Replace null values in discount_pct with 0 and in shipping_address_city with 'Unknown'` |
-| String cleanup | `Trim whitespace, capitalize first letter of first_name and last_name` |
-| Regex extract | `Extract the numeric part from the SKU column into a new column called sku_number` |
-| Date math | `Add a column days_to_deliver calculated as datediff between delivery_date and order_date` |
-| Running total | `Add a running total of line_total partitioned by customer_id ordered by order_timestamp` |
-| Fuzzy match | `Find customer names that are similar using soundex on last_name` |
-| Rank | `Rank products by total_revenue within each category` |
-| Binning | `Create age bins: 18-25, 26-35, 36-50, 51-65, 65+` |
+| Break detection | `Flag trades where settlement is missing or amount differs by more than 1%` |
+| Risk classification | `Classify counterparty risk based on credit rating: Investment Grade if BBB- or above, High Yield otherwise` |
+| Notional bucketing | `Create notional buckets: <1M, 1-10M, 10-50M, 50-100M, >100M` |
+| Tenor calculation | `Calculate days to maturity and classify as Short (<1Y), Medium (1-5Y), Long (>5Y)` |
+| MTM currency conversion | `Convert mtm_eur to USD using rate 1.08` |
+| Netting | `Calculate net exposure per counterparty (sum of positive and negative MTM)` |
+| Regulatory threshold | `Flag trades where notional exceeds the materiality threshold for their product type` |
+| Data quality | `Find trades where counterparty_id does not match any record in the counterparties table` |
+| Dedup | `Remove duplicate trades based on trade_id, keeping the most recent by trade_timestamp` |
+| Running exposure | `Add a running total of MTM by counterparty ordered by trade_date` |
+
+---
+
+## Appendix: Known Gaps vs Alteryx
+
+Be transparent about what Lakeflow Designer does not (yet) do:
+
+| Alteryx Capability | Lakeflow Designer Status |
+|---|---|
+| Spatial analytics | Not in Designer. Use H3 / Mosaic in notebooks. |
+| Predictive/ML blocks | Not in Designer. Use AutoML / MosaicAI. |
+| PDF report generation | Not in Designer. Use AI/BI Dashboards. |
+| Macro system (reusable workflows) | Not yet available. Use parameterized notebooks. |
+| Desktop offline mode | Designer is cloud-only (browser-based). |
+| Specific connectors (SAP, Teradata) | Check Lakeflow Connect availability per source. |

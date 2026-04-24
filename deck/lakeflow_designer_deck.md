@@ -16,402 +16,218 @@ style: |
   table {
     font-size: 0.75em;
   }
-  .columns {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1em;
-  }
 ---
 
 <!-- _class: lead -->
 
 # Lakeflow Designer
-## Visual ETL on Databricks
-### From Alteryx to Governed, Scalable Data Pipelines
+## Preparation de donnees visuelle, gouvernee, scalable
+### No-code sur Databricks -- Public Preview
 
 ---
 
 # Agenda
 
-1. Why rethink your ETL tooling?
-2. What is Lakeflow Designer?
-3. Core capabilities deep dive
-4. Alteryx vs Lakeflow Designer
-5. Live demo / Hands-on lab
-6. Architecture & governance
-7. Next steps
+1. Positionnement : pourquoi un outil no-code gouverne ?
+2. Qu'est-ce que Lakeflow Designer ?
+3. Capacites principales -- deep dive
+4. Demo live : scenario OTC / reconciliation
+5. Mapping des outils vs alternatives
+6. Gouvernance & lineage
+7. Prochaines etapes
 
 ---
 
-# The Challenge with Alteryx
+# Le besoin
 
-- **Desktop-bound**: workflows run on a single machine, limited scalability
-- **Governance gap**: no native Unity Catalog, no lineage, manual version control
-- **Costly licensing**: per-seat model with separate Server costs
-- **Data movement**: data exported/imported between tools, creating silos
-- **AI gap**: no built-in AI-assisted development
+- Des **centaines d'applications ad-hoc** a industrialiser
+- Des fichiers Excel envoyes par email, des workflows desktop non traces
+- Des regulateurs qui demandent **tracabilite et lineage** de bout en bout
+- Des utilisateurs **metier, pas IT** -- le no-code est un imperatif
 
-> "We spend more time managing Alteryx infrastructure than building pipelines."
-
----
-
-# What is Lakeflow Designer?
-
-A **visual, drag-and-drop ETL canvas** built into the Databricks platform.
-
-- Build data pipelines visually -- no code required
-- Every transformation is **backed by code** (reproducible, auditable)
-- Runs on **serverless compute** (no infrastructure to manage)
-- Native **Unity Catalog** integration (governance from day one)
-- **Genie Code AI** assistant for natural language transformations
-- Publish, schedule, and orchestrate as part of Databricks Jobs
-
-**Status:** Public Preview (April 2026)
+> L'enjeu n'est pas de changer d'outil. C'est d'industrialiser sans perdre l'agilite metier.
 
 ---
 
-# How It Works
+# Lakeflow Designer
 
-```
-  Source         Transform        Aggregate       Output
-  [UC Table] --> [Filter/Join] --> [Group/Sum] --> [UC Table]
-  [CSV file]     [Custom col]     [Pivot]         [Schedule]
-  [Drive]        [SQL/Python]     [Sort/Limit]    [Job task]
-```
+Un **canvas visuel drag-and-drop** integre a Databricks.
 
-- **Canvas**: drag-and-drop operators arranged as a DAG
-- **Data flows left to right** through connected operators
-- **Instant previews** on 1,000-row samples at every step
-- **Full dataset execution** when you're ready for production
+- Pipeline de donnees visuel -- **zero code requis**
+- Chaque transformation **genere du code** (auditable, reproductible)
+- Execution **serverless** (pas d'infra a gerer)
+- Integration native **Unity Catalog** (gouvernance des le depart)
+- **Genie Code** : assistant IA pour generer des transformations en langage naturel
+- Publication, scheduling, orchestration dans Databricks Jobs
+
+**Statut :** Public Preview (23 avril 2026)
 
 ---
 
-# Core Operators
+# Les operateurs
 
-| Operator | Purpose | Alteryx Equivalent |
+| Operateur | Fonction | Equivalent usuel |
 |---|---|---|
-| **Source** | Read from UC tables, volumes, CSV/Excel, Google Drive, SharePoint | Input Data |
-| **Filter** | Row-level filtering with graphical conditions | Filter |
-| **Transform** | Select, rename, reorder, add custom columns | Select + Formula |
-| **Join** | Combine tables (Inner, Left, Right, Full) | Join |
+| **Source** | Tables UC, volumes, CSV/Excel (drag-drop), Google Drive, SharePoint | Input Data |
+| **Filter** | Filtrage graphique par conditions | Filter |
+| **Transform** | Selection, renommage, colonnes calculees | Select + Formula |
+| **Join** | Inner, Left, Right, Full | Join |
 | **Combine** | Union, Intersect, Except | Union |
-| **Aggregate** | Group by + SUM, AVG, COUNT, MEDIAN, STDDEV... | Summarize |
-| **Pivot** | Rows-to-Columns and Columns-to-Rows | Cross Tab + Transpose |
-| **Sort / Limit** | Order and cap row count | Sort + Sample |
-| **SQL** | Custom SELECT statements | In-DB tools |
-| **Python** | PySpark code | Python tool (but distributed) |
-| **Output** | Write to Unity Catalog table | Output Data |
+| **Aggregate** | Groupement + SUM, AVG, COUNT, MEDIAN, STDDEV... | Summarize |
+| **Pivot** | Lignes vers Colonnes et Colonnes vers Lignes | Cross Tab + Transpose |
+| **Sort / Limit** | Tri et limitation | Sort + Sample |
+| **SQL** | Requetes SELECT custom | SQL custom |
+| **Python** | Code PySpark (distribue) | Python tool |
+| **Output** | Ecriture vers table Unity Catalog | Output |
 
 ---
 
-# Feature: Source Operator
+# Point cle : l'ingestion Excel
 
-**Multiple data source types:**
-- Browse Unity Catalog tables and volumes
-- Drag-and-drop CSV or Excel files onto the canvas
-- Google Drive (via UC connection)
-- SharePoint (via UC connection)
-- Lakeflow Connect for SaaS sources (Salesforce, Workday, HubSpot...)
+**Le pattern qui change tout :**
 
-**vs Alteryx:** No drivers to install, no ODBC config, no file path management. Everything is governed through Unity Catalog.
+1. L'utilisateur metier a un fichier Excel d'ajustements reglementaires
+2. Il le **glisse-depose directement sur le canvas**
+3. Lakeflow Designer cree automatiquement un operateur Source
+4. Le fichier est integre dans un **pipeline gouverne** avec lineage complet
 
----
+> Plus besoin d'envoyer des Excel par email. Le fichier ad-hoc entre dans le meme pipeline que les donnees structurees, avec tracabilite complete.
 
-# Feature: Filter Operator
-
-**Graphical condition builder -- no expressions needed**
-
-Condition types:
-- Equality: Is equal to / Is not equal to
-- Sets: Is one of / Is not one of
-- Text: Contains, Starts with, Ends with
-- Numeric: Greater than, Less than
-- Null: Is null / Is not null
-- Multiple conditions with AND logic
-
-**vs Alteryx:** Same functionality as the Filter tool, but with instant preview of results before running.
+**Sources supportees :** Tables UC, Volumes, CSV, Excel, Google Drive, SharePoint, + Lakeflow Connect (SaaS : Salesforce, Workday, etc.)
 
 ---
 
-# Feature: Transform Operator
+# Genie Code -- Assistant IA
 
-**The Swiss Army knife -- replaces 2+ Alteryx tools:**
+**Langage naturel vers transformation -- le differenciateur**
 
-- **Select** columns (include/exclude checkboxes)
-- **Rename** columns inline
-- **Reorder** columns by drag-and-drop
-- **Custom columns** with expression editor
-  - Write code directly **OR**
-  - Describe in natural language -- Genie generates the code
+- Decrire ce qu'on veut en francais ou en anglais
+- Genie genere l'expression Spark SQL / PySpark
+- Contexte-aware : connait le schema, les colonnes, les types
+- Upload d'images (ex: screenshot d'une formule existante)
+- Historique interactif pour affiner iterativement
 
-**vs Alteryx:** Combines Select + Formula + Multi-Field Formula. The AI-generated expressions are a major differentiator.
+**Exemples :**
+- *"Classifier le risque : High si MTM > 1M, Medium entre 100k et 1M, Low sinon"*
+- *"Calculer le nombre de jours avant maturite"*
+- *"Detecter les trades sans settlement (break)"*
 
----
-
-# Feature: Genie Code AI Assistant
-
-**Natural language to transformation -- the killer feature**
-
-- Describe what you want in plain English (or French)
-- Genie generates the Spark SQL / PySpark expression
-- Context-aware: knows your schema, column names, data types
-- Upload images (e.g., screenshot of an Alteryx formula) and ask Genie to replicate it
-- Interactive chat history for iterative refinement
-
-**Example prompts:**
-- *"Categorize customers by age: Gen Z (<25), Millennial (25-39), Gen X (40-54), Boomer (55+)"*
-- *"Calculate month-over-month revenue growth"*
-- *"Find duplicate records based on email, keeping the most recent"*
-
-**Alteryx has nothing comparable.**
+**Les alternatives n'ont pas d'equivalent.**
 
 ---
 
-# Feature: Join Operator
+# Data Profiling & Preview
 
-**Combine datasets with full control:**
+**Feedback instantane a chaque etape :**
 
-- Join types: Inner, Left, Right, Full
-- Multiple join conditions supported
-- Output column selection (avoid duplicate columns)
-- Add custom expression columns to joined results
-- Chain multiple joins for multi-table workflows
+- **Sample** (1 000 lignes) pour iterer rapidement
+- **Full dataset** pour validation
+- **Profiling** : distributions, stats, comptage de nulls
+- **Comparaison** entree/sortie
+- Cliquer sur n'importe quel operateur pour voir son resultat
 
-**vs Alteryx:** Same Join tool concept, but custom expression columns in the join output is unique to Lakeflow Designer.
-
----
-
-# Feature: Aggregate Operator
-
-**10 built-in aggregation functions:**
-
-`AVG` | `COUNT` | `MAX` | `MEAN` | `MEDIAN` | `MIN` | `PERCENTILE` | `STDDEV` | `SUM` | `VARIANCE`
-
-- Multiple aggregations in a single operator
-- Multiple grouping columns
-- Group-by columns auto-included in output
-
-**vs Alteryx:** The Summarize tool offers similar functions, but PERCENTILE, STDDEV, and VARIANCE require the R/Python tool in Alteryx. Here they're built-in.
+> Pas besoin de lancer le workflow complet. Previews instantanes a chaque etape.
 
 ---
 
-# Feature: Combine Operator
+# Demo live
 
-**Three set operations in one:**
+### Scenario : Reconciliation OTC & Reporting Reglementaire
 
-| Operation | Mode | Result |
-|---|---|---|
-| **Union** | All | Append all rows (including duplicates) |
-| **Union** | Distinct | Append and deduplicate |
-| **Intersect** | Distinct | Only rows present in both inputs |
-| **Except** | Distinct | Rows in first input but NOT in second |
+```
+  otc_trades (UC)  ----+
+                       +--> Join --> Filter --> Transform --> Aggregate --> Output (UC)
+  counterparties (UC) -+                          |
+                                                  +-- Join avec Excel adjustments
+  settlements (UC)  -------> Join (Left) ------+
+                                               +--> Break detection --> Output (UC)
+  adjustments.xlsx  -------> Drag & drop ------+
+```
 
-Requirement: both inputs must have matching schemas.
-
-**vs Alteryx:** Replaces Union tool. Intersect and Except require workarounds in Alteryx (Join + Filter). Here they're one click.
-
----
-
-# Feature: Pivot / Reshape
-
-**Bidirectional reshaping:**
-
-**Rows to Columns (Pivot)**
-- Select pivot column (distinct values become headers)
-- Choose value column and aggregation function
-- Handle nulls and missing values
-
-**Columns to Rows (Unpivot)**
-- Select columns to unpivot
-- Configure key and value column names
-
-**vs Alteryx:** Replaces Cross Tab (pivot) and Transpose (unpivot) tools in a single, unified operator.
+**4 sources dont 1 Excel** | Enrichissement | Detection de breaks | Rapport de synthese | Lineage
 
 ---
 
-# Feature: SQL & Python Operators
+# Gouvernance & Architecture
 
-### SQL Operator
-- Write any `SELECT` statement
-- Reference upstream operators by name as tables
-- Window functions, CTEs, complex logic
-- Great for analysts comfortable with SQL
+### Unity Catalog natif
+- Sources et outputs = assets UC gouvernes
+- **Lineage colonne par colonne** trace automatiquement
+- Controles d'acces (GRANT/REVOKE) appliques aux pipelines visuels
+- **Tracabilite complete** pour les auditeurs (y compris le fichier Excel)
 
-### Python Operator
-- Full PySpark environment
-- Access inputs via `inputs["data"]`
-- Assign result to `result` variable
-- Distributed execution (not single-machine like Alteryx Python)
-
-**vs Alteryx:** SQL operator is far more powerful than In-Database tools. Python runs on Spark, not limited to pandas on a single core.
-
----
-
-# Feature: Output & Scheduling
-
-### Output Operator
-- Write results to Unity Catalog tables
-- Governed, versioned, lineage-tracked
-- One-click materialization
-
-### Scheduling
-- **Schedule button** for direct cron-based scheduling
-- **Databricks Jobs** integration for multi-step orchestration
-  - Combine visual pipelines with notebooks, SQL, ML tasks
-  - Dependency management, retries, alerting
-
-**vs Alteryx:** Replaces Alteryx Server ($$$) with built-in scheduling. Jobs orchestration is far more powerful than Alteryx Scheduler.
-
----
-
-# Feature: Data Profiling & Preview
-
-**Instant feedback at every step:**
-
-- **Sample dataset** (1,000 rows) for fast iteration
-- **Full dataset** for validation
-- **Data profiling sidebar**: distributions, stats, null counts
-- **Input/output comparison** view
-- Click any operator to see its output immediately
-
-**vs Alteryx:** No need to "Run" the entire workflow. Instant previews save significant iteration time.
-
----
-
-# Canvas Navigation & Productivity
-
-| Feature | Details |
-|---|---|
-| Pan | Space + drag |
-| Zoom | Ctrl/Cmd + scroll |
-| Auto-layout | One-click arrange operators |
-| Fit view | Show all operators |
-| Copy/Paste | Cmd/Ctrl + C/V for operators |
-| Undo/Redo | Cmd/Ctrl + Z / Shift+Z |
-| Right-click menu | Context actions |
-| Drag-and-drop files | CSV/Excel auto-creates Source operator |
-
----
-
-# Governance & Architecture
-
-### Unity Catalog Native
-- All sources and outputs are governed UC assets
-- Column-level lineage tracked automatically
-- Access controls (GRANT/REVOKE) apply to visual pipelines
-- Data discovery through UC search
-
-### Code-Backed
-- Every visual transformation generates code
-- Auditable, reproducible, version-controlled
-- Can export to notebooks for advanced users
+### Code genere
+- Chaque transformation visuelle produit du code
+- Auditable, reproductible, versionnable
+- Graduation path : export vers notebooks pour les cas avances
 
 ### Serverless
-- No cluster management
-- Pay only for compute used
-- Instant start, auto-scale
+- Zero gestion de cluster
+- Paiement a l'usage
+- Demarrage instantane, auto-scale
 
 ---
 
-# Alteryx vs Lakeflow Designer Summary
+# Mapping des outils
 
-| Dimension | Alteryx | Lakeflow Designer |
+| Dimension | Desktop classique | Lakeflow Designer |
 |---|---|---|
-| **Execution** | Single machine | Distributed (Spark serverless) |
-| **Governance** | External / manual | Unity Catalog native |
-| **AI assistance** | None | Genie Code (NL to code) |
-| **Scheduling** | Alteryx Server ($$) | Built-in + Databricks Jobs |
-| **Collaboration** | Gallery | Workspace sharing + Git |
-| **Data sources** | ODBC/file drivers | UC tables, volumes, SaaS connectors |
-| **Lineage** | None | Automatic column-level |
-| **Scalability** | GB scale | TB+ scale |
-| **Cost model** | Per-seat license | Consumption-based |
-| **Code export** | Limited | Full Spark SQL / PySpark |
+| **Execution** | Machine unique | Distribue (Spark serverless) |
+| **Gouvernance** | Externe / manuelle | Unity Catalog natif |
+| **Assistance IA** | Aucune | Genie Code (NL vers code) |
+| **Scheduling** | Serveur dedie ($$$) | Integre + Databricks Jobs |
+| **Collaboration** | Galerie / partage fichiers | Workspace partage + Git |
+| **Sources** | Drivers ODBC/fichiers | UC tables, volumes, SaaS connectors |
+| **Lineage** | Aucun | Automatique, colonne par colonne |
+| **Scalabilite** | GB | TB+ |
+| **Modele de cout** | Licence par poste | Consommation |
+| **Export code** | Limite | Spark SQL / PySpark complet |
 
 ---
 
-# Migration Path from Alteryx
+# Ce que Lakeflow Designer ne fait pas (encore)
 
-### Phase 1: Quick Wins (Weeks 1-2)
-- Identify top 10 most-used Alteryx workflows
-- Rebuild them in Lakeflow Designer
-- Compare execution time and results
+Transparence totale :
 
-### Phase 2: Team Onboarding (Weeks 3-4)
-- Workshop: Lakeflow Designer hands-on lab (this deck!)
-- Genie Code training for formula migration
-- Set up shared catalog and schemas
-
-### Phase 3: Production Migration (Months 2-3)
-- Migrate remaining workflows
-- Set up scheduling in Databricks Jobs
-- Decommission Alteryx Server
-- Monitor with Unity Catalog lineage
+| Capacite | Statut | Alternative sur Databricks |
+|---|---|---|
+| Spatial analytics | Pas dans Designer | H3 / Mosaic en notebooks |
+| ML / Predictif dans le canvas | Pas dans Designer | AutoML / MosaicAI |
+| Generation de rapports PDF | Pas dans Designer | AI/BI Dashboards |
+| Macros / workflows reutilisables | Pas encore | Notebooks parametres |
+| Mode offline desktop | Cloud uniquement | -- |
+| Connecteurs specifiques (SAP...) | Verifier Lakeflow Connect | -- |
 
 ---
 
-# Hands-On Lab Overview
+# Demo
 
-**9 modules covering every feature:**
+### Deroulage prevu
 
-| Module | What You'll Build |
-|---|---|
-| 1. First Visual Data Prep | Canvas basics, source, preview |
-| 2. Filtering & Sorting | Filter, Sort, Limit operators |
-| 3. Transforms & Expressions | Custom columns, Genie Code AI |
-| 4. Joins | Multi-table joins |
-| 5. Aggregations | Grouping, functions |
-| 6. Combine & Reshape | Union, Pivot, Unpivot |
-| 7. SQL & Python | Custom code operators |
-| 8. Output & Schedule | Write tables, automate |
-| 9. End-to-End Pipeline | Complete Alteryx-replacement workflow |
-
-**Dataset:** Retail supply chain (6 tables, 100K+ rows)
+| Etape | Duree | Contenu |
+|---|---|---|
+| Cadrage | ~10' | Positionnement no-code + gouvernance |
+| Demo live | ~40' | Scenario OTC fil rouge + interactions |
+| Mapping outils | ~15' | Equivalences, gaps (honnete) |
+| Discussion + next | reste | Leurs workflows, atelier 2 |
 
 ---
 
-# Lab Dataset
+# Prochaines etapes
 
-```
-customers (5K)  ---+
-                   +--> orders (25K) --> order_items (75K)
-stores (50)     ---+                        |
-                                            v
-                                     products (500)
-suppliers (100)
-```
+1. **Identifier les 10 workflows prioritaires** a migrer
+2. **Atelier 2 approfondi** : tester avec les donnees reelles du client
+3. **Pilot** : un workflow de production migre end-to-end
+4. **Formation equipe** : Genie Code pour accelerer l'adoption
+5. **Review gouvernance** : lineage UC vs audit actuel
 
-Realistic French retail data:
-- Customers with demographics and loyalty tiers
-- Products across 5 categories with pricing
-- Orders over 2 years via Web/Store/Mobile
-- Suppliers with ratings and lead times
-
----
-
-<!-- _class: lead -->
-
-# Demo Time
-
-### Let's build a pipeline together
-
----
-
-# Next Steps
-
-1. **Try the lab** -- run the data generation notebook and follow the guide
-2. **Identify your top Alteryx workflows** -- we'll help you map them
-3. **Workshop session** -- schedule a team onboarding with your SA
-4. **Pilot project** -- pick one production workflow to migrate
-5. **Review governance** -- compare UC lineage vs your current Alteryx audit
-
-### Resources
-- [Lakeflow Designer docs](https://docs.databricks.com/aws/en/designer/what-is-lakeflow-designer)
+### Ressources
+- [Documentation Lakeflow Designer](https://docs.databricks.com/aws/en/designer/what-is-lakeflow-designer)
 - [Lab repository](https://github.com/marionlamoureux/lakeflow_designer)
 
 ---
 
 <!-- _class: lead -->
 
-# Thank You
-## Questions?
+# Merci
+## Questions ?

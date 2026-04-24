@@ -1,11 +1,13 @@
-# Alteryx vs Lakeflow Designer - Detailed Comparison
+# No-Code Desktop Tools vs Lakeflow Designer - Detailed Comparison
 
-## Executive Summary
+## Positioning Note
 
-Lakeflow Designer replaces Alteryx for visual data preparation with three key advantages:
-1. **Governance by default** -- Unity Catalog integration means lineage, access control, and audit from day one.
-2. **Scalability** -- runs on Spark serverless, not a single machine; handles TB-scale data.
-3. **AI-assisted development** -- Genie Code generates expressions from natural language, accelerating analyst productivity.
+Lakeflow Designer is a **no-code product in its own right**. The positioning should lead with:
+1. **No-code visual data prep** -- business users build pipelines without writing code
+2. **Governance by default** -- Unity Catalog lineage, access control, audit from day one
+3. **Scalability** -- runs on Spark serverless, handles TB-scale data
+
+The fact that it generates SDP/SQL code underneath is a **secondary argument** ("graduation path", code transparency) -- not the entry point of the pitch.
 
 ---
 
@@ -13,100 +15,76 @@ Lakeflow Designer replaces Alteryx for visual data preparation with three key ad
 
 ### Data Input/Output
 
-| Alteryx | Lakeflow Designer | Notes |
+| Desktop Tool | Lakeflow Designer | Notes |
 |---|---|---|
 | Input Data (file) | Source operator (drag-drop CSV/Excel) | No file path management; files uploaded to workspace |
 | Input Data (database) | Source operator (UC table) | No ODBC drivers; governed access via Unity Catalog |
+| Input Data (Excel) | **Drag-and-drop Excel onto canvas** | Key pattern: ad-hoc business files enter governed pipelines |
 | Connect In-DB | Source operator (UC table) | All tables are lakehouse-native |
 | Output Data | Output operator | Writes to UC tables; instantly queryable |
 | Directory | Source from UC Volume | Browse volumes in Unity Catalog |
-| Download | Not needed | Data stays in the lakehouse |
 
 ### Data Preparation
 
-| Alteryx | Lakeflow Designer | Notes |
+| Desktop Tool | Lakeflow Designer | Notes |
 |---|---|---|
 | Select | Transform (checkboxes) | Select, rename, reorder in one operator |
-| Auto Field | Not needed | Schema inferred automatically |
-| Data Cleansing | Transform + Genie Code | Prompt: "trim whitespace, handle nulls" |
-| Filter | Filter operator | Graphical condition builder |
+| Filter | Filter operator | Graphical condition builder, instant preview |
 | Sort | Sort operator | Multi-column, ASC/DESC |
-| Sample | Limit operator | Also: sample toggle in preview |
-| Unique | Combine (Distinct) or SQL | `SELECT DISTINCT` via SQL operator |
-| Formula | Transform > Custom column | Expression editor + Genie AI |
-| Multi-Row Formula | SQL operator (window functions) | `LAG`, `LEAD`, `ROW_NUMBER`, etc. |
-| Multi-Field Formula | Transform > multiple custom columns | Or Genie: "apply X to all numeric columns" |
-| Record ID | Transform > Custom column | Expression: `monotonically_increasing_id()` |
-| Running Total | SQL operator (window) | `SUM() OVER (ORDER BY ...)` |
+| Sample | Limit operator | Also: sample toggle in preview pane |
+| Formula | Transform > Custom column | Expression editor + Genie AI natural language |
+| Multi-Row Formula | SQL operator (window functions) | LAG, LEAD, ROW_NUMBER, etc. |
+| Data Cleansing | Transform + Genie Code | Prompt: "trim whitespace, handle nulls" |
+| Unique | Combine (Distinct) or SQL | SELECT DISTINCT via SQL operator |
 
 ### Join & Combine
 
-| Alteryx | Lakeflow Designer | Notes |
+| Desktop Tool | Lakeflow Designer | Notes |
 |---|---|---|
-| Join | Join operator | Inner, Left, Right, Full |
-| Find Replace | Join + Transform | Left join + COALESCE expression |
-| Append Fields | Join (cross join via SQL) | SQL: `SELECT * FROM a CROSS JOIN b` |
+| Join | Join operator | Inner, Left, Right, Full + custom expression columns |
 | Union | Combine (Union) | All or Distinct mode |
-| Make Group | Not applicable | Use Group By in Aggregate |
+| Find Replace | Join + Transform | Left join + COALESCE expression |
 
 ### Analytics & Reshaping
 
-| Alteryx | Lakeflow Designer | Notes |
+| Desktop Tool | Lakeflow Designer | Notes |
 |---|---|---|
-| Summarize | Aggregate operator | 10 built-in functions |
+| Summarize | Aggregate operator | 10 built-in functions including PERCENTILE, STDDEV |
 | Cross Tab | Pivot (Rows to Columns) | Unified Pivot operator |
 | Transpose | Pivot (Columns to Rows) | Same operator, toggle mode |
-| Running Total | SQL window function | More flexible than Alteryx |
-| Weighted Average | Transform + Aggregate | Custom expression for weighted calc |
-| Percentile | Aggregate (PERCENTILE) | Built-in; requires R tool in Alteryx |
-
-### Spatial (not available in Designer)
-
-Alteryx spatial tools (Buffer, Distance, Spatial Match, Trade Area) do not have direct equivalents in Lakeflow Designer. For spatial analysis, use Databricks notebooks with H3 or Mosaic libraries, then bring the result tables into Designer.
-
-### Reporting
-
-| Alteryx | Lakeflow Designer | Notes |
-|---|---|---|
-| Browse | Output pane + Data Profiling | Live at every step, no run needed |
-| Table | Output to UC > AI/BI Dashboard | Build dashboards on output tables |
-| Chart | Data Profiling sidebar | Distributions and stats |
-| Report | Not applicable | Use AI/BI Dashboards or notebooks |
+| Running Total | SQL window function | More flexible with full window syntax |
 
 ### Developer
 
-| Alteryx | Lakeflow Designer | Notes |
+| Desktop Tool | Lakeflow Designer | Notes |
 |---|---|---|
-| Python tool | Python operator | PySpark (distributed) |
-| R tool | Not available | Use notebooks for R |
-| Command | Not available | Use Databricks Jobs |
-| Dynamic Input | Parameterized via SQL operator | Or Python operator |
+| Python tool | Python operator | PySpark (distributed, not single-machine) |
+| SQL | SQL operator | Full Spark SQL with window functions, CTEs |
 
 ### Automation
 
-| Alteryx | Lakeflow Designer | Notes |
+| Desktop Tool | Lakeflow Designer | Notes |
 |---|---|---|
-| Scheduler | Schedule button | Cron-based, built-in |
-| Alteryx Server | Databricks Jobs | Multi-step orchestration, monitoring, alerting |
-| Alteryx Gallery | Workspace sharing | Role-based access, Git integration |
-| Alteryx Analytics Hub | Unity Catalog | Centralized governance |
+| Scheduler | Schedule button | Cron-based, built-in, no separate server |
+| Server | Databricks Jobs | Multi-step orchestration, monitoring, alerting |
+| Gallery | Workspace sharing | Role-based access, Git integration |
 
 ---
 
 ## What Lakeflow Designer Does Better
 
-1. **Instant preview at every step** -- no need to run the full workflow to see intermediate results
-2. **AI code generation** -- describe a transformation in English, get the expression
-3. **Governed by default** -- Unity Catalog lineage, access controls, audit logs
-4. **Serverless execution** -- no machine sizing, no bottlenecks, auto-scales
-5. **Code export** -- visual pipelines generate Spark SQL/PySpark that advanced users can extend
-6. **Cost efficiency** -- consumption-based pricing vs per-seat licensing
-7. **Platform integration** -- part of Databricks, alongside ML, BI, and data engineering tools
+1. **Excel drag-and-drop into governed pipelines** -- ad-hoc files become traceable assets
+2. **Instant preview at every step** -- no need to run the full workflow
+3. **AI code generation (Genie)** -- describe transformations in natural language
+4. **Lineage tracked automatically** -- Unity Catalog column-level lineage
+5. **Serverless execution** -- no machine sizing, no bottlenecks
+6. **Platform integration** -- same platform as data engineering, ML, and BI
 
-## What Alteryx Still Does (That Designer Doesn't Yet)
+## Known Gaps to Be Honest About
 
-1. **Spatial analytics** -- Alteryx has rich spatial tools; use Databricks Mosaic/H3 for spatial work
-2. **Predictive/statistical tools** -- Alteryx has built-in ML blocks; use Databricks ML for this
-3. **Reporting/render** -- Alteryx can generate formatted PDF reports; use AI/BI Dashboards
-4. **Macro system** -- Alteryx macros allow reusable workflow components; use parameterized notebooks
-5. **Desktop experience** -- Alteryx runs locally; Lakeflow Designer is browser-based (cloud-first)
+1. **Spatial analytics** -- use Databricks H3/Mosaic in notebooks
+2. **Predictive/ML in canvas** -- use AutoML / MosaicAI
+3. **PDF report generation** -- use AI/BI Dashboards
+4. **Macro system** -- use parameterized notebooks
+5. **Desktop/offline mode** -- Designer is cloud-only (browser-based)
+6. **Specific connectors** (SAP, Teradata) -- check Lakeflow Connect availability
