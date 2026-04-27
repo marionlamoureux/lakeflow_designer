@@ -1,8 +1,8 @@
 # Lakeflow Designer - Hands-On Lab Guide
 
-> **Scenario:** OTC Derivatives regulatory reporting -- reconciliation, break detection, and Finrep preparation.
-> **Dataset:** Finance/CFT (counterparties, OTC trades, settlements, market data) + Excel regulatory adjustments.
-> **Prerequisite:** Run `data_generation/00_generate_test_data.py` first.
+> **Scenario:** OTC Derivatives regulatory reporting -- reconciliation, break detection, and Finrep preparation.  
+> **Dataset:** Finance/CFT (counterparties, OTC trades, settlements, market data) + Excel regulatory adjustments.  
+> **Prerequisite:** Run `data_generation/00_generate_test_data.py` first.  
 
 ---
 
@@ -41,7 +41,7 @@ Download `regulatory_adjustments.xlsx` from the Volume to your local machine. Yo
 
 ## Module 1 - Your First Visual Data Prep: Ingest a UC Table + an Excel File
 
-> **Goal:** Create a pipeline that combines a governed UC table with an ad-hoc Excel file from the business -- the core pattern that needs industrializing.
+> **Goal:** Create a pipeline that combines a governed Unity Catalog table with an ad-hoc Excel file from the business -- the core pattern that needs industrializing.  
 
 ### 1.1 Create a new Visual Data Prep
 
@@ -52,14 +52,14 @@ Download `regulatory_adjustments.xlsx` from the Volume to your local machine. Yo
 
 1. Click **Select source** and browse to `lab_lakeflow.cft.otc_trades`.
 2. The Source operator appears on the canvas.
-3. Click on it -- the **output pane** shows a preview (up to 1,000 rows).
+3. Click on it - the **output pane** shows a preview (up to 1,000 rows).
 
 ### 1.3 Drag-and-drop the Excel file
 
 1. Open your file explorer and locate `regulatory_adjustments.xlsx`.
 2. **Drag the file directly onto the canvas.**
 3. Lakeflow Designer uploads it and creates a Source operator automatically.
-4. Click on the new Source -- you see the Adjustments sheet data.
+4. Click on the new Source - you see the Adjustments sheet data.
 
 > **Key message:** This is exactly how business teams will work. They have an Excel file with manual adjustments, they drop it on the canvas, and it immediately becomes part of a governed pipeline. No more emailing spreadsheets around.
 
@@ -67,8 +67,8 @@ Download `regulatory_adjustments.xlsx` from the Volume to your local machine. Yo
 
 | Action | How |
 |---|---|
-| Pan | Hold `Space` + drag |
-| Zoom | `Ctrl/Cmd` + scroll wheel |
+| Pan | Drag |
+| Zoom | Scroll wheel |
 | Fit view | Click the fit-to-view icon (toolbar) |
 | Auto-layout | Click the auto-layout icon (toolbar) |
 | Undo / Redo | `Cmd/Ctrl + Z` / `Cmd/Ctrl + Shift + Z` |
@@ -79,6 +79,9 @@ Download `regulatory_adjustments.xlsx` from the Volume to your local machine. Yo
 2. Click the **sidebar icon** (top-right of the output pane) to open **Data Profiling**.
 3. Explore distributions: `product_type`, `currency`, `status`, `mtm_eur`.
 4. Notice the stats: count, distinct values, nulls, min/max per column.
+
+![Data profiling view](../resources/images/data-profiling-b98b2e418c7e93f86d5d611d1189da6e.png)
+
 
 ### 1.6 Sample vs Full dataset
 
