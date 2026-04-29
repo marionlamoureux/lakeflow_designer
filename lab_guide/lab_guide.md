@@ -48,6 +48,11 @@ Download `regulatory_adjustments.xlsx` from the Volume to your local machine. Yo
 1. In the sidebar, click **New > Visual data prep**.
 2. The welcome screen appears.
 
+> Sources: Imports data into Designer. The Source operator reads from a Unity Catalog table or other supported sources. It has two stages:
+
+> Selecting a table or file: Search for a table or file by name, or browse by catalog and schema. You can also create a new table from this pane.
+> Table summary: After selecting a table, the configuration pane shows the table's name, owner, and last updated time. Click Select a new data source to change the source. Changing the source invalidates the output cache for all downstream operators.
+
 ### 1.2 Add a Unity Catalog source
 
 1. Click **Select source** and browse to `lab_lakeflow.cft.otc_trades`.
@@ -88,80 +93,83 @@ Download `regulatory_adjustments.xlsx` from the Volume to your local machine. Yo
 1. Toggle to **Full dataset** and click **Run** -- all 10,000 trades appear.
 2. Switch back to **Sample dataset** for faster iteration.
 
+>Just a preview. To exports data out of Designer, you can write results to a table in Unity Catalog.  
+>To do so: in the Output configuration pane, specify:  
+>Table name: The name of the table to create.  
+>Output location: The catalog and schema where the table is created.  
+>Click Run to run the Visual data prep and write results.  
+
 ---
 
 ## Module 2 - Filtering & Sorting
 
-> **Goal:** Filter trades by status, product type, and sort by exposure.
+> **Goal:** Filter is part of the transformations that you can perform on your data. Here, we'll hilter trades by status, product type, and sort by exposure.
 
 ### 2.1 Filter - Live trades only
 
 1. Click **+** on the `otc_trades` Source.
-2. Select **Filter**.
+2. Select **Filter**, name it `Live_trades_only`
 3. Configure: Column: `status`, Condition: `Is equal to`, Value: `Live`.
-4. Preview: only live trades remain.
+=> Click **Apply**
+> Preview: only live trades remain.
 
-### 2.2 Filter - Multiple conditions
-
-1. Click **+ Add condition** in the same Filter.
-2. Add: Column: `clearing_type`, Condition: `Is equal to`, Value: `Bilateral`.
-3. Now you see only live bilateral trades -- the ones with the most counterparty risk.
-
-### 2.3 Filter - Numeric threshold
+### 2.2 Filter - Numeric threshold
 
 1. Add a new Filter after the first one.
 2. Column: `notional_amount`, Condition: `Greater than`, Value: `10000000`.
 3. Preview: large bilateral live trades only.
+=> Click **Apply**
 
-### 2.4 Sort by exposure
+### 2.3 Sort by exposure
 
-1. Add a **Sort** operator.
+1. Click **+** after the filter operator on the `otc_trades` source.
+2. Add a **Sort** operator, name it `Sort_by_exposure`.
 2. Sort by `mtm_eur` **DESC** (largest positive exposure first).
 3. Add secondary sort: `notional_amount` **DESC**.
+=> Click **Apply**
 
-### 2.5 Limit
+### 2.4 Limit
 
-1. Add a **Limit** operator: 50 rows.
-2. You now have the top 50 largest bilateral exposures.
+1. Add a **Limit**, name it `Limit_50` operator after the sort operator: 50 rows.
+=> Click **Apply**
+
+> You now have the top 50 largest bilateral exposures.
 
 ---
 
 ## Module 3 - Transforms & Genie Code AI
 
-> **Goal:** Add calculated columns. Show how Genie Code replaces the need to know Spark SQL syntax.
+> **Goal:** Add calculated columns. Show how Genie Code for Natural Language to Transformation.
 
-### 3.1 Start a new Visual Data Prep
+### 3.1 Transform - Select, rename, reorder
 
-1. **New > Visual data prep**.
-2. Source: `lab_lakeflow.cft.otc_trades`.
-
-### 3.2 Transform - Select, rename, reorder
-
-1. Add a **Transform** operator.
+1. To source otc, add a **Transform** operator.
 2. **Uncheck** `uti` and `trade_timestamp` (not needed for this report).
 3. **Rename** `mtm_eur` to `mark_to_market`.
 4. **Rename** `notional_amount` to `notional`.
 5. **Reorder**: drag `product_type` above `book`.
+=> Click **Apply**
 
 ### 3.3 Custom column - Manual expression
 
-1. Click **+ Add a custom column**.
-2. Name: `exposure_pct`
-3. Expression:
+1. Click **+ Add a custom column**, switch input field to `Expression`
+2. Expression:
    ```
    round(abs(mark_to_market) / notional * 100, 2)
    ```
-4. Preview.
+3. Name: `exposure_pct`
+=> Click **Apply** and preview output
 
 ### 3.4 Custom column - Genie Code AI (natural language)
 
-1. Click **+ Add a custom column**.
-2. Name: `risk_bucket`
-3. In the **Description** field, type:
+1. Click **+ Add a custom column**, use imput field **Description**
+2. In the **Description** field, type:
    ```
    Classify the trade risk: "High" if absolute mark_to_market exceeds 1 million, "Medium" if between 100k and 1M, "Low" otherwise
    ```
-4. Genie generates the CASE expression. Review and accept.
+3. Name: `risk_bucket`
+4. Genie generates the CASE expression.
+=> Review and **Apply**
 
 ### 3.5 Genie Code - Open conversation
 
@@ -175,8 +183,10 @@ Download `regulatory_adjustments.xlsx` from the Volume to your local machine. Yo
 ### 3.6 Genie Code - Advanced prompt
 
 Try: `Calculate the absolute notional in EUR. If the currency is already EUR, keep as-is. For USD use rate 1.08, for GBP use 0.86, for CHF use 0.95, for JPY use 162.5. Name the column notional_eur.`
+=> Review and Click **Apply**.
 
-> **Key message for SG:** Your business users don't need to learn Spark SQL. They describe what they want, Genie writes the code. And the code is visible and auditable -- important for regulatory traceability.
+
+> **Key message** Your business users don't need to learn SQL or Python. They describe what they want, Genie writes the code. And the code is visible and auditable - important for regulatory traceability.
 
 ---
 
@@ -186,38 +196,41 @@ Try: `Calculate the absolute notional in EUR. If the currency is already EUR, ke
 
 ### 4.1 Enrich trades with counterparty data
 
-1. New Visual data prep.
-2. Add two Sources: `otc_trades` and `counterparties`.
-3. Add a **Join** operator.
-4. Connect `otc_trades` (left) and `counterparties` (right).
-5. Join condition: `otc_trades.counterparty_id = counterparties.counterparty_id`.
-6. Join type: **Inner join**.
-7. Uncheck duplicate `counterparty_id` in output columns.
-8. Preview: trades now have counterparty name, rating, type, country.
+1. Add another Source: `counterparties`.
+2. Add a **Join** operator between counterparties and otc_trades, name it `enriched_trades`
+3. Connect `otc_trades` (left) and `counterparties` (right).
+4. Join condition: `otc_trades.counterparty_id = counterparties.counterparty_id`.
+5. Join type: **Inner join**.
+6. Uncheck duplicate `counterparty_id` in output columns.
+=>Click **Apply** and preview output: trades now have counterparty name, rating, type, country.
 
 ### 4.2 Add a custom expression in the Join
 
-1. Click **+ Add custom expression column**.
-2. Name: `counterparty_label`
-3. Expression:
+1. Click **Additional expressions**, **Add a custom column**.
+LET'S TRY THE DEBUG FEATURE
+2. Expression:
    ```
-   concat(counterparty_name, ' (', credit_rating, ' - ', country, ')')
+   concate(counterparty_name, ' (', credit_rating, ' - ', country, ')')
    ```
+=> Clic **Apply**, expected behavior is that the expression fails and Genie Code offers to fix it
+3. Name: `counterparty_label`
+=> Click **Apply** and preview
 
 ### 4.3 Detect settlement breaks (Left Join)
 
 1. Add a third Source: `settlements`.
-2. Add a new **Join** after the first one.
+2. Add a new **Join** after the first one sames it `settlement`
 3. Connect the enriched trades (left) to settlements (right).
 4. Join on: `otc_trades.trade_id = settlements.trade_id`.
 5. Join type: **Left join** (trades without settlements = breaks).
-6. Preview: some rows have null `settlement_id` -- these are the breaks.
+
+=> Click **Apply** and preview: some rows have null `settlement_id` -- these are the breaks.
 
 ### 4.4 Filter to show only breaks
 
-1. Add a **Filter** after the join.
+1. Add a **Filter** operator `settlement_breaks` after the join.
 2. Column: `settlement_id`, Condition: `Is null`.
-3. Preview: ~500 trades with no settlement record.
+3. Preview: ~200 trades with no settlement record.
 
 > **Key message:** This is a classic Alteryx reconciliation pattern -- load two datasets, join, find mismatches. In Lakeflow Designer it's the same logic, but governed and scalable.
 
@@ -230,14 +243,14 @@ Try: `Calculate the absolute notional in EUR. If the currency is already EUR, ke
 ### 5.1 Exposure by counterparty
 
 1. Start from the enriched trades (Module 4.1 join output).
-2. Add an **Aggregate** operator.
+2. Add an **Aggregate** operator, name it `Exposure_by_counterparty`
 3. Configure:
    - **Group by:** `counterparty_name`, `credit_rating`, `counterparty_type`
    - **Aggregations:**
-     - `mark_to_market` > **SUM** > `total_mtm`
+     - `mtm_eur` > **SUM** > `total_mtm`
      - `notional` > **SUM** > `total_notional`
      - `trade_id` > **COUNT** > `trade_count`
-     - `mark_to_market` > **MAX** > `max_single_exposure`
+     - `mtm_eur` > **MAX** > `max_single_exposure`
 
 ### 5.2 Exposure by product and clearing type
 
@@ -269,15 +282,13 @@ Try: `Calculate the absolute notional in EUR. If the currency is already EUR, ke
 
 ### 6.1 Combine - Union bilateral and cleared trades
 
-1. New Visual data prep.
-2. Source: `otc_trades`.
-3. Add two Filters after the source:
+1. To source otc, add two Filters after the source:
    - Filter A: `clearing_type = 'Bilateral'`
    - Filter B: `clearing_type = 'CCP-Cleared'`
-4. Add a Transform to each to select the same columns (e.g., `trade_id`, `product_type`, `notional_amount`, `mtm_eur`).
-5. Add a **Combine** operator, connect both.
-6. Operation: **Union** / **All**.
-7. Preview: all trades combined.
+2. Add a Transform to each to select the same columns (e.g., `trade_id`, `product_type`, `notional_amount`, `mtm_eur`).
+3. Add a **Combine** operator, connect both.
+4. Operation: **Union** / **All**.
+5. Preview: all trades combined.
 
 ### 6.2 Combine - Except (find bilateral-only products)
 
@@ -308,8 +319,7 @@ Try: `Calculate the absolute notional in EUR. If the currency is already EUR, ke
 
 ### 7.1 SQL - Window functions for ranking
 
-1. New Visual data prep, Source: `otc_trades`.
-2. Add a **SQL** operator:
+1. To source: `otc_trades`,Add a **SQL** operator:
    ```sql
    SELECT
      trade_id,
@@ -528,4 +538,4 @@ Be transparent about what Lakeflow Designer does not (yet) do:
 | PDF report generation | Not in Designer. Use AI/BI Dashboards. |
 | Macro system (reusable workflows) | Not yet available. Use parameterized notebooks. |
 | Desktop offline mode | Designer is cloud-only (browser-based). |
-| Specific connectors (SAP, Teradata) | Check Lakeflow Connect availability per source. |
+
