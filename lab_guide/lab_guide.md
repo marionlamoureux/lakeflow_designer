@@ -242,7 +242,7 @@ LET'S TRY THE DEBUG FEATURE
 
 ### 5.1 Exposure by counterparty
 
-1. Start from the enriched trades (Module 4.1 join output).
+1. Start from the **Enriched_trades** (Module 4.1 join output).
 2. Add an **Aggregate** operator, name it `Exposure_by_counterparty`
 3. Configure:
    - **Group by:** `counterparty_name`, `credit_rating`, `counterparty_type`
@@ -252,33 +252,29 @@ LET'S TRY THE DEBUG FEATURE
      - `trade_id` > **COUNT** > `trade_count`
      - `mtm_eur` > **MAX** > `max_single_exposure`
 
-### 5.2 Exposure by product and clearing type
 
-1. Add another Aggregate:
-   - **Group by:** `product_type`, `clearing_type`
+### 5.2 Advanced: Percentile analysis
+
+1. New Aggregate after **Enriched_trades**, name it `Percentile_analysis`
    - **Aggregations:**
-     - `notional` > **SUM** > `total_notional`
-     - `trade_id` > **COUNT** > `trade_count`
-     - `mark_to_market` > **AVG** > `avg_mtm`
-     - `mark_to_market` > **STDDEV** > `mtm_volatility`
-
-### 5.3 Advanced: Percentile analysis
-
-1. New Aggregate:
+     - `notional_amount` > **MEDIAN** > `median_notional`
+     - `mtm_eur` > **STDDEV**  > `mtm_stddev`
+> Returns the sample standard deviation of the numeric expression expr over the input rows
+     - `mtm_eur` > **VARIANCE** > `mtm_variance`
    - **Group by:** `product_type`
-   - **Aggregations:**
-     - `notional` > **MEDIAN** > `median_notional`
-     - `mark_to_market` > **PERCENTILE** (90th) > `mtm_p90`
-     - `mark_to_market` > **VARIANCE** > `mtm_variance`
 
-> **Available functions:** AVG, COUNT, MAX, MEAN, MEDIAN, MIN, PERCENTILE, STDDEV, SUM, VARIANCE.
-> In Alteryx, PERCENTILE and STDDEV require the R or Python tool. Here they are built-in.
+> **Available functions:** AVG, COUNT, MAX, MEAN, MEDIAN, MIN, STDDEV, SUM, VARIANCE.
+> PERCENTILE and STDDEV are built-in.
 
 ---
 
 ## Module 6 - Combine & Reshape
 
-> **Goal:** Union datasets, pivot for cross-tabulation, unpivot.
+> **Goal:** Union datasets, pivot for cross-tabulation, unpivot:
+>The Combine operator: Takes two input tables with matching schemas (same columns, compatible types).
+>Applies a set operation: Union, Intersect, Except
+>Then applies a merge strategy:Distinct, All
+
 
 ### 6.1 Combine - Union bilateral and cleared trades
 
@@ -297,7 +293,7 @@ LET'S TRY THE DEBUG FEATURE
 
 ### 6.3 Pivot - Exposure cross-tab
 
-1. Start from an Aggregate: group by `product_type` and `clearing_type`, sum `notional_amount` as `total_notional`.
+1. Start from an **Aggregate**: group by `product_type` and `clearing_type`, sum `notional_amount` as `total_notional`.
 2. Add a **Pivot** (Reshape) operator.
 3. Mode: **Rows to Columns**.
 4. Pivot column: `clearing_type`.
